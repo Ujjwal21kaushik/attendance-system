@@ -1,0 +1,519 @@
+{% extends "base.html" %} 
+{% load static %} 
+{% block title %}Teacher | Dashboard{% endblock %} 
+{% block modals %}
+<div id="sessionModal" class="modal-overlay" style="display: none;">
+  <div class="modal">
+    <h3 id="modalTitle"></h3>
+    <p id="modalMessage"></p>
+    
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeModal()">Cancel</button>
+      <button class="modal-confirm" id="modalConfirmBtn">Confirm</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block content %}
+<div class="faculty-container">
+
+  <!-- HEADER -->
+  <div class="faculty-header">
+    <h2>Faculty Dashboard</h2>
+    <p>Welcome ,<b>{{user.teacher.name}}</b> Manage attendance records and classroom location</p>
+  </div>
+  <div class="filters">
+  <select id="lectureSelect" onchange="updateStatusFromSelect()">
+    {% for lecture in lectures %}
+      <option
+        value="{{ lecture.id }}"
+        data-active="{{ lecture.is_active|yesno:'true,false' }}"
+      >
+        {{ lecture.subject }}
+      </option>
+    {% endfor %}
+  </select>
+
+
+    <input type="date" />
+
+    <!-- SESSION STATUS -->
+    <span class="session-status inactive" id="sessionStatus">
+      NOT STARTED
+    </span>
+
+    <!-- SESSION CONTROLS -->
+  <button class="start-session-btn" onclick="openSessionModal('start')">
+    Start Attendance
+  </button>
+
+  <button class="end-session-btn" onclick="openSessionModal('end')">
+    End Attendance
+  </button>
+  </div>
+
+  <!-- TABS -->
+  <div class="faculty-tabs">
+      <button class="tab-btn active" onclick="openTab(event, 'location')">
+    📍 Location Setup
+      </button>
+
+    <button class="tab-btn" onclick="openTab(event, 'reports')">
+      📄 Attendance Reports
+    </button>
+  </div>
+
+  <!-- ================= REPORTS TAB ================= -->
+<div id="reports" class="tab-content">
+  <div class="card">
+    <div class="card-header">
+      <h3>Attendance Reports</h3>
+
+    <div class="filters">
+      <select id="reportLecture">
+        {% for lecture in lectures %}
+          <option value="{{ lecture.id }}">{{ lecture.subject }}</option>
+        {% endfor %}
+      </select>
+
+      <input type="date" id="reportDate">
+
+      <button style="padding: 8px; border-radius:8px; border:1px solid white; font-size:15px; background-color:orange; cursor:pointer;" onclick="loadReport()">Load</button>
+    </div>
+  </div>
+
+    <div class="table-scroll">
+      <table class="attendance-table">
+        <thead>
+          <tr>
+            <th>Student ID</th>
+            <th>Name</th>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+
+        <tbody id="reportTableBody">
+        <tr>
+          <td colspan="6" style="text-align:center;">
+            Select subject and date
+          </td>
+        </tr>
+      </tbody>
+
+      </table>
+    </div>
+  </div>
+</div>
+
+
+  <!-- ================= LOCATION TAB ================= -->
+  <div id="location" class="tab-content active">
+    <div class="card">
+      <h3 id="locationMsg" class="location-Msg">Classroom Location Setup</h3>
+
+      <div class="location-box">
+        <div class="location-row">
+          <label>Latitude</label>
+          <span id="latValue">—</span>
+        </div>
+
+        <div class="location-row">
+          <label>Longitude</label>
+          <span id="lngValue">—</span>
+        </div>
+
+        <div class="location-row">
+          <label>Geo-fence Radius (meters)</label>
+          <div class="radius-input">
+            <input
+              type="number"
+              min="10"
+              max="200"
+              value="50"
+              id="radiusInput"
+            />
+            <span class="unit">m</span>
+          </div>
+        </div>
+      </div>
+
+      <button class="update-location-btn" onclick="saveLocation()">
+        Update Classroom Location
+      </button>
+    </div>
+  </div>
+
+
+
+<!-- ===== EDIT ATTENDANCE MODAL ===== -->
+<div id="editAttendanceModal" class="modal-overlay" style="display:none;">
+  <div class="modal">
+
+    <h3>Edit Attendance</h3>
+    <p>Update attendance status for this student.</p>
+
+    <div class="edit-info">
+      <div>
+        <label>Student ID</label>
+        <span id="editStudentId">—</span>
+      </div>
+      <div>
+        <label>Name</label>
+        <span id="editStudentName">—</span>
+      </div>
+    </div>
+
+    <div class="status-toggle">
+      <label>
+        <input type="radio" name="attendanceStatus" value="present" checked>
+        Present
+      </label>
+      <label>
+        <input type="radio" name="attendanceStatus" value="absent">
+        Absent
+      </label>
+    </div>
+
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeEditModal()">Cancel</button>
+      <button class="modal-confirm" id="saveAttendanceBtn">
+      Save Changes
+      </button>
+
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ===== JS (ALSO HERE) ===== -->
+<script>
+let currentEditRow = null;
+let currentAction = null;
+
+document.addEventListener("DOMContentLoaded", function () {
+
+  window.openTab = function (e, tabId) {
+    document.querySelectorAll(".tab-content").forEach(tab =>
+      tab.classList.remove("active")
+    );
+    document.querySelectorAll(".tab-btn").forEach(btn =>
+      btn.classList.remove("active")
+    );
+    document.getElementById(tabId).classList.add("active");
+    e.target.classList.add("active");
+  };
+
+  window.openSessionModal = function (action) {
+    currentAction = action;
+
+    const modal = document.getElementById("sessionModal");
+    const title = document.getElementById("modalTitle");
+    const message = document.getElementById("modalMessage");
+    const confirmBtn = document.getElementById("modalConfirmBtn");
+
+    if (action === "start") {
+      title.innerText = "Start Attendance";
+      message.innerText =
+        "Are you sure you want to start attendance for this lecture?";
+      confirmBtn.style.background = "#16a34a";
+    } else {
+      title.innerText = "End Attendance";
+      message.innerText =
+        "Are you sure you want to end attendance? Students will no longer be able to mark attendance.";
+      confirmBtn.style.background = "#dc2626";
+    }
+
+    modal.style.display = "flex";
+  };
+
+  window.closeModal = function () {
+    document.getElementById("sessionModal").style.display = "none";
+  };
+
+  document.getElementById("modalConfirmBtn").addEventListener("click", function () {
+
+  const lectureId = document.getElementById("lectureSelect").value;
+  const csrftoken = getCookie("csrftoken");
+
+  const url =
+    currentAction === "start"
+      ? "/attendance/start/"
+      : "/attendance/end/";
+
+  fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "X-CSRFToken": csrftoken,
+    },
+    body: "lecture_id=" + lectureId,
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        updateSessionUI(currentAction);
+        closeModal();
+      } else {
+        alert("Backend error");
+      }
+    });
+});
+
+});
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== "") {
+    const cookies = document.cookie.split(";");
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === (name + "=")) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+
+function updateSessionUI(action) {
+  const status = document.getElementById("sessionStatus");
+  const startBtn = document.querySelector(".start-session-btn");
+  const endBtn = document.querySelector(".end-session-btn");
+
+  if (action === "start") {
+    status.textContent = "ACTIVE";
+    status.classList.remove("inactive");
+    status.classList.add("active");
+
+    startBtn.disabled = true;
+    endBtn.disabled = false;
+  } else {
+    status.textContent = "NOT STARTED";
+    status.classList.remove("active");
+    status.classList.add("inactive");
+
+    startBtn.disabled = false;
+    endBtn.disabled = true;
+  }
+}
+
+function openEditModal(studentId, studentName, currentStatus) {
+  document.getElementById("editStudentId").innerText = studentId;
+  document.getElementById("editStudentName").innerText = studentName;
+
+  document.querySelectorAll("input[name='attendanceStatus']").forEach(radio => {
+    radio.checked = radio.value === currentStatus;
+  });
+
+  document.getElementById("editAttendanceModal").style.display = "flex";
+}
+
+function closeEditModal() {
+  document.getElementById("editAttendanceModal").style.display = "none";
+}
+function openEditFromRow(btn) {
+  currentEditRow = btn.closest("tr");   // 🔑 store row
+  const studentId = btn.dataset.id;
+  const studentName = btn.dataset.name;
+  const status = btn.dataset.status;
+
+  openEditModal(studentId, studentName, status);
+}
+document.getElementById("saveAttendanceBtn").addEventListener("click", function () {
+
+  // get selected status
+  const selectedStatus = document.querySelector(
+    "input[name='attendanceStatus']:checked"
+  ).value;
+
+  // update badge in table
+  const badge = currentEditRow.querySelector(".badge");
+
+  badge.textContent =
+    selectedStatus.charAt(0).toUpperCase() + selectedStatus.slice(1);
+
+  badge.classList.remove("present", "absent");
+  badge.classList.add(selectedStatus);
+
+  // update dataset (important for re-edit)
+  const editBtn = currentEditRow.querySelector(".edit-btn");
+  editBtn.dataset.status = selectedStatus;
+
+  // close modal
+  closeEditModal();
+});
+
+function updateStatusFromSelect() {
+  const select = document.getElementById("lectureSelect");
+  const option = select.options[select.selectedIndex];
+
+  const isActive = option.dataset.active === "true";
+
+  const status = document.getElementById("sessionStatus");
+  const startBtn = document.querySelector(".start-session-btn");
+  const endBtn = document.querySelector(".end-session-btn");
+
+  if (isActive) {
+    status.textContent = "ACTIVE";
+    status.classList.remove("inactive");
+    status.classList.add("active");
+
+    startBtn.disabled = true;
+    endBtn.disabled = false;
+  } else {
+    status.textContent = "NOT STARTED";
+    status.classList.remove("active");
+    status.classList.add("inactive");
+
+    startBtn.disabled = false;
+    endBtn.disabled = true;
+  }
+}
+
+document.addEventListener("DOMContentLoaded", updateStatusFromSelect);
+
+{% comment %} ---------------- locations------------- {% endcomment %}
+function saveLocation() {
+  const lectureId = document.getElementById("lectureSelect").value;
+  const radius = document.getElementById("radiusInput").value;
+  const msg = document.getElementById("locationMsg");
+
+  msg.textContent = "Detecting location...";
+  msg.className = "location-msg";
+
+  if (!navigator.geolocation) {
+    msg.textContent = "Geolocation not supported";
+    msg.classList.add("error");
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+
+      // update UI
+      document.getElementById("latValue").textContent = lat.toFixed(6);
+      document.getElementById("lngValue").textContent = lng.toFixed(6);
+
+      fetch("/location/set/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "X-CSRFToken": getCookie("csrftoken")
+        },
+        body:
+          "lecture_id=" + lectureId +
+          "&latitude=" + lat +
+          "&longitude=" + lng +
+          "&radius=" + radius
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          msg.textContent = "Classroom location updated successfully ✔";
+          msg.classList.add("success");
+        } else {
+          msg.textContent = "Failed to save location";
+          msg.classList.add("error");
+        }
+      });
+    },
+    error => {
+      msg.textContent = "Location error: " + error.message;
+      msg.classList.add("error");
+    }
+  );
+}
+{% comment %} -----------------load location--------------- {% endcomment %}
+function loadLocation() {
+  const lectureId = document.getElementById("lectureSelect").value;
+
+  fetch("/location/get/?lecture_id=" + lectureId)
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        document.getElementById("latValue").textContent =
+          data.latitude.toFixed(6);
+
+        document.getElementById("lngValue").textContent =
+          data.longitude.toFixed(6);
+
+        document.getElementById("radiusInput").value =
+          data.radius;
+      } else {
+        document.getElementById("latValue").textContent = "—";
+        document.getElementById("lngValue").textContent = "—";
+      }
+    });
+}
+document.getElementById("lectureSelect").addEventListener(
+  "change",
+  loadLocation
+);
+
+document.addEventListener("DOMContentLoaded", loadLocation);
+
+
+/*----------- Report --------------*/
+function loadReport() {
+
+  const lectureId = document.getElementById("reportLecture").value;
+  const date = document.getElementById("reportDate").value;
+  const tbody = document.getElementById("reportTableBody");
+
+  if (!date) {
+    tbody.innerHTML =
+      `<tr><td colspan="6">Please select a date</td></tr>`;
+    return;
+  }
+
+  fetch(`/attendance/report/?lecture_id=${lectureId}&date=${date}`)
+    .then(res => res.json())
+    .then(data => {
+
+      if (!data.success) {
+        tbody.innerHTML =
+          `<tr><td colspan="6">Error loading report</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = "";
+
+      data.report.forEach(row => {
+        tbody.innerHTML += `
+          <tr>
+            <td>${row.student_id}</td>
+            <td>${row.name}</td>
+            <td>${row.date}</td>
+            <td>${row.time}</td>
+            <td>
+              <span class="badge ${row.status}">
+                ${row.status === "present" ? "Present" : "Absent"}
+              </span>
+            </td>
+            <td>
+              <button class="edit-btn"
+                data-id="${row.student_id}"
+                data-name="${row.name}"
+                data-status="${row.status}"
+                onclick="openEditFromRow(this)">
+                Edit
+              </button>
+            </td>
+          </tr>
+        `;
+      });
+    });
+}
+
+</script>
+
+
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Student | Login{% endblock %}
+
+{% block content %}
+
+<div class="login-wrapper">
+
+  <div class="login-box">
+
+    <!-- LEFT IMAGE -->
+    <div class="login-left">
+      <img src="https://cdn-icons-png.flaticon.com/512/3135/3135755.png" alt="Student">
+    </div>
+
+    <!-- RIGHT FORM -->
+    <div class="login-right">
+      <h2>STUDENT LOGIN</h2>
+
+      <form method="post">
+        {% csrf_token %}
+
+        <label>Email ID / Roll No</label>
+        <div class="field">
+          <input type="text" name="username" placeholder="Enter ID" required>
+          <span>👤</span>
+        </div>
+
+        <label>Password</label>
+        <div class="field">
+          <input type="password" name="password" placeholder="Enter Password" required>
+          <span>🔒</span>
+        </div>
+
+        <button type="submit" class="login-btn">LOGIN</button>
+
+        {% if error %}
+          <p class="error">{{ error }}</p>
+        {% endif %}
+      </form>
+    </div>
+
+  </div>
+
+</div>
+
+{% endblock %}

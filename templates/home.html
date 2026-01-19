@@ -1,0 +1,69 @@
+{% extends "base.html" %} {% block content %}
+
+<div class="head">
+  <h1>Secure Attendance System</h1>
+  <p>
+    Multi-factor verification combining student authentication, Wi-Fi
+    connectivity, face recognition, and GPS geo-fencing for accurate attendance
+    tracking.
+  </p>
+</div>
+
+
+<!-- Top Features -->
+<div class="features">
+  <div class="feature-card">
+    <div class="icon"><i class="fa-solid fa-shield-halved"></i></div>
+    <h3>Student Login</h3>
+    <p>Secure authentication</p>
+  </div>
+
+  <div class="feature-card">
+    <div class="icon"><i class="fa-solid fa-wifi"></i></div>
+    <h3>Wi-Fi Check</h3>
+    <p>Campus network verification</p>
+  </div>
+
+  <div class="feature-card">
+    <div class="icon"><i class="fa-solid fa-face-smile"></i></div>
+    <h3>Face Recognition</h3>
+    <p>Biometric verification</p>
+  </div>
+
+  <div class="feature-card">
+    <div class="icon"><i class="fa-solid fa-location-dot"></i></div>
+    <h3>GPS Geo-fence</h3>
+    <p>Location verification</p>
+  </div>
+</div>
+
+<!-- Portals -->
+<div class="portals">
+  <div class="portal-card">
+    <div class="portal-header">
+      <i class="fa-solid fa-user-graduate"></i>
+      <h2>Student Portal</h2>
+    </div>
+    <p>Mark your attendance with secure multi-factor verification</p>
+
+    <a href="{% url 'student_login' %}" class="btn primary">
+      Student Login
+    </a>
+  </div>
+
+  <div class="portal-card">
+    <div class="portal-header">
+      <i class="fa-solid fa-chart-column"></i>
+      <h2>Admin Portal</h2>
+    </div>
+    <p>Manage attendance records and classroom locations</p>
+
+    <a href="{% url 'teacher_login' %}" class="btn outline">
+      Admin Login
+    </a>
+  </div>
+</div>
+
+
+
+{% endblock %}

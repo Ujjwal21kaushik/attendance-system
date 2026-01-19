@@ -1,0 +1,90 @@
+{% extends "base.html" %} {% load static %} {% block title %}Student | Dashboard
+{% endblock %} {% block content %}
+
+<div class="dashboard-container">
+  <!-- STUDENT INFO CARD -->
+  <div class="student-card">
+    <div class="student-left">
+      <img src="{% static 'css/images/default_image.jpg' %}" alt="{{user.student.name}}" />
+      <div>
+        <h3>{{user.student.name}}</h3>
+        <p>B.Tech CSE | Semester IV ({{user.student.section}})</p>
+        <p>Roll No: {{user.student.roll_no}}</p>
+      </div>
+    </div> 
+
+    <div class="student-right">
+      <div class="stat">
+        <h2>100%</h2>
+        <span>Attendance</span>
+      </div>
+      <div class="stat">
+        <h2>86.7%</h2>
+        <span>Marks</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- LECTURE SECTION -->
+<div class="lecture-section">
+  <h3>📘 Today's Lectures</h3>
+
+  <div class="lecture-grid">
+
+    {% for item in lecture_cards %}
+      {% with lecture=item.lecture %}
+
+      <div class="lecture-card {% if item.marked %}marked{% endif %}">
+        <div class="lecture-info">
+          <h4>{{ lecture.subject }}</h4>
+
+          <p>
+            <strong>Teacher:</strong>
+            {{ lecture.teacher.name }}
+          </p>
+
+          <p>
+            <strong>Room:</strong>
+            {{ lecture.room }}
+          </p>
+
+          <p>
+            <strong>Time:</strong>
+            {{ lecture.start_time|time:"H:i" }} –
+            {{ lecture.end_time|time:"H:i" }}
+          </p>
+        </div>
+
+        {% if item.status == "present" %}
+        <span class="status present">🟢 Present</span>
+
+      {% elif item.status == "absent" %}
+        <span class="status absent">🔴 Absent</span>
+
+      {% elif item.session_active %}
+        <a
+          href="{% url 'attendance:mark_attendance' lecture.id %}"
+          class="mark-btn"
+        >
+          Mark Attendance
+        </a>
+
+      {% else %}
+        <span class="status pending">⚪ Not Started</span>
+      {% endif %}
+
+
+      </div>
+
+      {% endwith %}
+    {% empty %}
+      <p>No lectures scheduled for today.</p>
+    {% endfor %}
+
+  </div>
+</div>
+
+  </div>
+</div>
+
+{% endblock %}

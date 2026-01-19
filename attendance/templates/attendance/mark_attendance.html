@@ -1,0 +1,330 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Mark Attendance{% endblock %}
+
+{% block content %}
+
+<div class="attendance-container">
+
+  {% if error %}
+    <p style="color: red; font-weight: 600">{{ error }}</p>
+  {% endif %}
+
+  {% if success %}
+    <p style="color: green; font-weight: 600">{{ success }}</p>
+  {% endif %}
+
+  {% if today_attendance %}
+    <div style="margin: 15px 0; padding: 12px; background: #e6f7e6; color: #1b5e20; font-weight: 600; border-radius: 6px;">
+      ✅ You are marked <strong>PRESENT</strong> for today
+    </div>
+  {% endif %}
+
+  <!-- LECTURE INFO -->
+  <div class="lecture-header">
+    <h2>{{ lecture.subject }}</h2>
+    <p>
+      Teacher: {{ lecture.teacher.name }} |
+      Room: {{ lecture.room }} |
+      Time: {{ lecture.start_time|time:"H:i" }} - {{ lecture.end_time|time:"H:i" }}
+    </p>
+  </div>
+
+  {% if not today_attendance %}
+
+  <!-- CHECK 1: FACE AUTH -->
+  <div class="check-card">
+    <h3>👤 Face Authentication</h3>
+
+    <video id="video" autoplay playsinline class="camera-box"></video>
+    <canvas id="canvas" style="display:none;"></canvas>
+
+    <button class="action-btn" onclick="scanFace()">Scan Face</button>
+
+    <span id="faceStatus" class="status pending">Pending</span>
+
+    <div id="faceMessage" class="message-box"></div>
+  </div>
+
+  <!-- CHECK 2: LOCATION -->
+  <div class="check-card">
+    <h3>📍 Location Verification</h3>
+    <p>Must be within {{radius}} meters of classroom</p>
+
+    <button class="action-btn" onclick="checkLocation()">
+      Check Location
+    </button>
+    <span id="locationStatus" class="status pending">Pending</span>
+
+  </div>
+
+
+  <!-- CHECK 3: NETWORK -->
+  <div class="check-card">
+    <h3>🌐 Network Verification</h3>
+    <p>You must be connected to classroom network</p>
+
+    <button class="action-btn" onclick="checkNetwork()">
+      Verify Network
+    </button>
+
+    <span id="networkStatus" class="status pending">Pending</span>
+  </div>
+
+
+
+  <!-- FINAL ACTION -->
+  <div class="final-action">
+    <form method="post">
+      {% csrf_token %}
+      <button class="submit-btn" id="submitBtn" disabled>
+        Submit Attendance
+      </button>
+    </form>
+
+    <p class="note">Attendance will be marked only if all checks pass.</p>
+  </div>
+
+  {% endif %}
+
+</div>
+
+
+<script>
+{% if today_attendance %}
+  let faceOk = true;
+  let locationOk = true;
+  let networkOk = true;
+{% else %}
+  let faceOk = false;
+  let locationOk = false;
+  let networkOk = false;
+{% endif %}
+
+let cameraStream = null;
+
+/* CAMERA ELEMENTS */
+const video = document.getElementById("video");
+const canvas = document.getElementById("canvas");
+
+/* -------- START CAMERA -------- */
+function startCamera() {
+  if (cameraStream) return;
+
+  navigator.mediaDevices.getUserMedia({ video: true })
+    .then(stream => {
+      cameraStream = stream;
+      video.srcObject = stream;
+    })
+    .catch(() => {
+      showFaceMessage("Camera access denied", "error");
+    });
+}
+
+/* -------- STOP CAMERA -------- */
+function stopCamera() {
+  if (!cameraStream) return;
+
+  cameraStream.getTracks().forEach(track => track.stop());
+  cameraStream = null;
+  video.srcObject = null;
+}
+
+/* -------- MESSAGE HELPER -------- */
+function showFaceMessage(text, type) {
+  const box = document.getElementById("faceMessage");
+  box.textContent = text;
+  box.className = "message-box " + type;
+}
+
+/* -------- FACE VERIFY -------- */
+function scanFace() {
+
+  startCamera();
+
+  const messageBox = document.getElementById("faceMessage");
+  const status = document.getElementById("faceStatus");
+
+  showFaceMessage("Preparing camera...", "info");
+
+  // ✅ WAIT until video metadata is ready
+  if (video.readyState < 2) {
+    video.onloadeddata = () => {
+      captureFrame();
+    };
+  } else {
+    captureFrame();
+  }
+
+  function captureFrame() {
+
+    setTimeout(() => {
+      const ctx = canvas.getContext("2d");
+
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      // ❗ SAFETY CHECK
+      if (canvas.width === 0 || canvas.height === 0) {
+        showFaceMessage("Camera not ready. Try again.", "error");
+        stopCamera();
+        return;
+      }
+
+      ctx.drawImage(video, 0, 0);
+
+      const imageBase64 = canvas.toDataURL("image/jpeg");
+
+      showFaceMessage("Scanning face...", "info");
+
+      fetch("/face/verify/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": "{{ csrf_token }}"
+        },
+        body: JSON.stringify({
+          image: imageBase64,
+          lecture_id: {{ lecture.id }}
+        })
+      })
+      .then(res => {
+        if (!res.ok) throw new Error("Server error");
+        return res.json();
+      })
+      .then(data => {
+
+        if (data.not_registered) {
+          showFaceMessage("Face not registered. Redirecting...", "error");
+          stopCamera();
+          setTimeout(() => {
+            window.location.href =
+              "/face/register/?lecture_id={{ lecture.id }}";
+          }, 1200);
+          return;
+        }
+
+        if (data.success) {
+          faceOk = true;
+          status.textContent = "Verified ✔";
+          status.className = "status success";
+          showFaceMessage("Face verified successfully.", "success");
+
+          stopCamera(); // 🔥 camera OFF
+          updateSubmitState();
+        } else {
+          status.textContent = "Failed";
+          status.className = "status failed";
+          showFaceMessage("Face not matched. Try again.", "error");
+        }
+      })
+      .catch(() => {
+        showFaceMessage("Server error during face verification", "error");
+        stopCamera();
+      });
+
+    }, 300); // 🔑 short delay ensures valid frame
+  }
+}
+
+
+/* -------- LOCATION CHECK (REAL / MOCK SAFE) -------- */
+const locBtn = document.getElementById("locationBtn");
+if (locBtn) {
+  locBtn.onclick = () => {
+    locationOk = true;
+    const status = document.getElementById("locationStatus");
+    status.textContent = "Success";
+    status.className = "status success";
+    updateSubmitState();
+  };
+}
+
+/* -------- ENABLE SUBMIT -------- */
+function updateSubmitState() {
+  const btn = document.getElementById("submitBtn");
+  if (btn && faceOk && locationOk && networkOk) {
+    btn.disabled = false;
+  }
+}
+
+/*-----------location Verify------------*/
+function checkLocation() {
+  const status = document.getElementById("locationStatus");
+
+  status.textContent = "Checking...";
+  status.className = "status pending";
+
+  if (!navigator.geolocation) {
+    status.textContent = "GPS not supported";
+    status.className = "status failed";
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      fetch("/location/verify/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "X-CSRFToken": "{{ csrf_token }}"
+        },
+        body:
+          "lecture_id={{ lecture.id }}" +
+          "&latitude=" + pos.coords.latitude +
+          "&longitude=" + pos.coords.longitude
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          locationOk = true;
+          status.textContent = "Verified ✔";
+          status.className = "status success";
+          updateSubmitState();
+        } else {
+          status.textContent =
+            "Outside radius (" + data.distance + " m)";
+          status.className = "status failed";
+        }
+      });
+    },
+    err => {
+      status.textContent = "Location denied";
+      status.className = "status failed";
+    }
+  );
+}
+
+/*----------Network verify---------------*/
+/* -------- NETWORK VERIFY -------- */
+function checkNetwork() {
+  const status = document.getElementById("networkStatus");
+
+  status.textContent = "Checking...";
+  status.className = "status pending";
+
+  fetch(`/network/verify/{{ session_id }}/`)
+    .then(res => res.json())
+    .then(data => {
+      if (data.allowed) {
+        networkOk = true;
+        status.textContent = "Verified ✔";
+        status.className = "status success";
+        updateSubmitState();
+      } else {
+        networkOk = false;
+        status.textContent = "Wrong Network ❌";
+        status.className = "status failed";
+      }
+    })
+    .catch(() => {
+      status.textContent = "Network error";
+      status.className = "status failed";
+    });
+}
+
+
+</script>
+
+{% endblock %}
