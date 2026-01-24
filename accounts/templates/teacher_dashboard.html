@@ -37,7 +37,7 @@
   </select>
 
 
-    <input type="date" />
+    <input type="date" id="attendanceDate" name="date" />
 
     <!-- SESSION STATUS -->
     <span class="session-status inactive" id="sessionStatus">
@@ -78,7 +78,7 @@
         {% endfor %}
       </select>
 
-      <input type="date" id="reportDate">
+      <input type="date" id="reportDate" name ="date">
 
       <button style="padding: 8px; border-radius:8px; border:1px solid white; font-size:15px; background-color:orange; cursor:pointer;" onclick="loadReport()">Load</button>
     </div>
@@ -192,7 +192,12 @@
 
 
 <!-- ===== JS (ALSO HERE) ===== -->
+
+
+
+
 <script>
+
 let currentEditRow = null;
 let currentAction = null;
 
@@ -469,15 +474,15 @@ function loadReport() {
   const tbody = document.getElementById("reportTableBody");
 
   if (!date) {
-    tbody.innerHTML =
-      `<tr><td colspan="6">Please select a date</td></tr>`;
+    tbody.innerHTML = `
+      <tr><td colspan="6">Please select a date</td></tr>
+    `;
     return;
   }
 
   fetch(`/attendance/report/?lecture_id=${lectureId}&date=${date}`)
     .then(res => res.json())
     .then(data => {
-
       if (!data.success) {
         tbody.innerHTML =
           `<tr><td colspan="6">Error loading report</td></tr>`;
@@ -514,6 +519,19 @@ function loadReport() {
 }
 
 </script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const dateInput = document.getElementById("reportDate");
+    const today = new Date().toISOString().split("T")[0];
+    if (dateInput && !dateInput.value) {
+        /*const today = new Date().toISOString().split("T")[0];*/
+        dateInput.value = today;
+    }
+    document.getElementById("attendanceDate").value = today;
+  });
+</script>
+
 
 
 {% endblock %}

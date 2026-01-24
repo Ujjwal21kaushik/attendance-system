@@ -27,7 +27,9 @@ SECRET_KEY = 'django-insecure-@(0%r)tvc)ulziv^tfcl0dybw9_n-^r2b$qw#%9#vdg)d*rpz@
 DEBUG = True
 
 ALLOWED_HOSTS = ["*"]
-
+CSRF_TRUSTED_ORIGINS = [
+                    "https://*.ngrok-free.dev",
+                        ]
 # Application definition
 
 INSTALLED_APPS = [
@@ -126,6 +128,7 @@ USE_TZ = True
 
 
 STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [os.path.join(BASE_DIR , 'static')]
 
 

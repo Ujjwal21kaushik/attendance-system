@@ -83,11 +83,11 @@ def verify_location(request):
         location.latitude,
         location.longitude
     )
-    # print("📍 Student Lat:", student_lat)
-    # print("📍 Student Lng:", student_lng)
-    # print("🏫 Teacher Lat:", location.latitude)
-    # print("🏫 Teacher Lng:", location.longitude)
-    # print("📏 Distance (meters):", round(distance, 2))
+    print("📍 Student Lat:", student_lat)
+    print("📍 Student Lng:", student_lng)
+    print("🏫 Teacher Lat:", location.latitude)
+    print("🏫 Teacher Lng:", location.longitude)
+    print("📏 Distance (meters):", round(distance, 2))
 
     if distance <= location.radius:
         request.session["location_verified"] = True

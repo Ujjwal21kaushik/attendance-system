@@ -426,19 +426,21 @@ nav{
 .check-card h3 {
     margin-bottom: 10px;
 }
-
-.camera-box {
-    height: 180px;
-    background: url("images/Face_id.png");
-    background-size:contain;
-    background-repeat: no-repeat;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 12px;
-    color: #555;
+.camera-wrapper {
+    background: url("images/Face_id.png") center no-repeat;
+    background-size: contain;
 }
+.camera-box {
+    width: 100%;
+    height: 180px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    background: #000;
+    object-fit: cover;
+
+    transform: scaleX(1); 
+}
+
 .message-box {
   height: 4vh;
   margin-top: 10px;
@@ -1105,3 +1107,4 @@ nav{
     padding: 30px;
   }
 }
+ 

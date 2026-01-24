@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from accounts.models import Teacher, Student
 from django.utils import timezone
+from django.utils.timezone import now
 
 class Lecture(models.Model):
     subject = models.CharField(max_length=100)
@@ -45,7 +46,7 @@ class AttendanceRecord(models.Model):
         on_delete=models.CASCADE,
         related_name="attendance_records"
     )
-    date = models.DateField(default=timezone.localdate)
+    date = models.DateField(default=now)
     status = models.CharField(
         max_length=10,
         choices=(('present', 'Present'), ('absent', 'Absent')),

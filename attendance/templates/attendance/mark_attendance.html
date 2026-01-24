@@ -37,7 +37,9 @@
   <div class="check-card">
     <h3>👤 Face Authentication</h3>
 
-    <video id="video" autoplay playsinline class="camera-box"></video>
+    <div class="camera-wrapper">
+      <video id="video" autoplay playsinline class="camera-box"></video>
+    </div>
     <canvas id="canvas" style="display:none;"></canvas>
 
     <button class="action-btn" onclick="scanFace()">Scan Face</button>
@@ -112,10 +114,13 @@ const canvas = document.getElementById("canvas");
 function startCamera() {
   if (cameraStream) return;
 
-  navigator.mediaDevices.getUserMedia({ video: true })
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "user" }
+    })
     .then(stream => {
       cameraStream = stream;
       video.srcObject = stream;
+      video.style.transform = "scaleX(1)";
     })
     .catch(() => {
       showFaceMessage("Camera access denied", "error");
@@ -304,24 +309,34 @@ function checkNetwork() {
   status.textContent = "Checking...";
   status.className = "status pending";
 
-  fetch(`/network/verify/{{ session_id }}/`)
-    .then(res => res.json())
-    .then(data => {
-      if (data.allowed) {
-        networkOk = true;
-        status.textContent = "Verified ✔";
-        status.className = "status success";
-        updateSubmitState();
-      } else {
-        networkOk = false;
-        status.textContent = "Wrong Network ❌";
-        status.className = "status failed";
-      }
-    })
-    .catch(() => {
-      status.textContent = "Network error";
+  fetch(`/network/verify/{{ session_id }}/`, {
+    method: "GET",
+    cache: "no-store",
+    credentials: "same-origin"
+  })
+  .then(res => {
+    if (!res.ok) {
+      throw new Error("Server error");
+    }
+    return res.json();
+  })
+  .then(data => {
+    if (data.allowed) {
+      networkOk = true;
+      status.textContent = "Verified ✔";
+      status.className = "status success";
+      updateSubmitState();
+    } else {
+      networkOk = false;
+      status.textContent = data.reason || "Wrong Network ❌";
       status.className = "status failed";
-    });
+    }
+  })
+  .catch(err => {
+    console.error("Network check failed:", err);
+    status.textContent = "Network error";
+    status.className = "status failed";
+  });
 }
 
 
